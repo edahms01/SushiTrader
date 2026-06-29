@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho+B1:wght@500;600;700;800&family=Zen+Kaku+Gothic+New:wght@400;500;700;900&display=swap" rel="stylesheet">
+  <style>*{box-sizing:border-box;} body{margin:0;}</style>
+</helmet>
+
+<div style="width:max-content; min-width:100%; min-height:100vh; box-sizing:border-box; padding:48px; background:#e7e5df; font-family:'Zen Kaku Gothic New',sans-serif;">
+  <div style="margin-bottom:32px;">
+    <div style="font-family:'Shippori Mincho B1',serif; font-size:26px; font-weight:700; color:#283d3b;">Stat bar — light vs dark</div>
+    <div style="font-size:14px; color:#7c8682; margin-top:6px;">Same A screen, only the Cash · Cargo · Shops bar differs. Everything else is identical.</div>
+  </div>
+
+  <div style="display:flex; gap:48px; align-items:flex-start;">
+
+    <!-- ===== LIGHT ===== -->
+    <div style="flex:none; width:402px;">
+      <div style="font-size:13px; font-weight:700; color:#283d3b; margin-bottom:4px;">LIGHT TILES</div>
+      <div style="font-size:12px; color:#7c8682; margin-bottom:14px;">Alternating rhythm · max white · cash reads as dark ink</div>
+      <div data-screen-label="Light stats" style="width:402px; background:#f6f4ef; border-radius:42px; overflow:hidden; box-shadow:0 12px 40px rgba(40,61,59,.18); border:1px solid #e3ddd2;">
+        <div style="background:#1c2b29; padding:18px 0 0; position:relative;">
+          <div style="text-align:center; padding:0 24px 16px;">
+            <div style="font-family:'Shippori Mincho B1',serif; font-size:27px; font-weight:700; color:#f6f4ef; line-height:1;">鮨商</div>
+            <div style="font-size:10px; font-weight:700; letter-spacing:.4em; color:#bb9457; margin-top:6px;">SUSHI TRADER</div>
+          </div>
+          <svg width="100%" height="20" viewBox="0 0 402 20" preserveAspectRatio="none" style="display:block;">
+            <path d="M0,0 L402,0 L402,20 L368,6 L335,20 L301,6 L268,20 L234,6 L201,20 L167,6 L134,20 L100,6 L67,20 L33,6 L0,20 Z" fill="#1c2b29"/>
+            <path d="M0,0 L402,0 L402,2 L0,2 Z" fill="#9b2226"/>
+          </svg>
+        </div>
+        <div style="padding:18px 16px 22px;">
+          <div style="display:flex; background:#fff; border:1px solid #e9e2d4; border-radius:16px; overflow:hidden; margin-bottom:14px;">
+            <div style="flex:1.3; padding:13px 14px;">
+              <div style="font-size:10px; font-weight:700; letter-spacing:.08em; color:#9aa39e;">CASH</div>
+              <div style="display:flex; align-items:baseline; gap:4px; margin-top:3px;"><span style="font-family:'Shippori Mincho B1',serif; font-size:23px; font-weight:700; color:#283d3b;">10,000</span><span style="font-size:11px; font-weight:700; color:#bb9457;">mon</span></div>
+            </div>
+            <div style="width:1px; background:#ece5d8; margin:11px 0;"></div>
+            <div style="flex:1; padding:13px 14px;">
+              <div style="font-size:10px; font-weight:700; letter-spacing:.08em; color:#9aa39e;">CARGO</div>
+              <div style="font-family:'Shippori Mincho B1',serif; font-size:23px; font-weight:700; color:#283d3b; margin-top:3px;">4<span style="font-size:13px; color:#9aa39e;">/30</span></div>
+            </div>
+            <div style="width:1px; background:#ece5d8; margin:11px 0;"></div>
+            <div style="flex:.85; padding:13px 14px;">
+              <div style="font-size:10px; font-weight:700; letter-spacing:.08em; color:#9aa39e;">SHOPS</div>
+              <div style="font-family:'Shippori Mincho B1',serif; font-size:23px; font-weight:700; color:#283d3b; margin-top:3px;">0</div>
+            </div>
+          </div>
+          <div style="background:#22322f; border-radius:16px; padding:14px; position:relative; overflow:hidden;">
+            <div style="position:absolute; left:0; top:0; bottom:0; width:4px; background:#9b2226;"></div>
+            <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+              <div style="display:flex; align-items:center; gap:11px;">
+                <div style="width:38px; height:38px; border-radius:10px; background:rgba(246,244,239,.08); border:1px solid rgba(187,148,87,.30); display:flex; align-items:center; justify-content:center; font-family:'Shippori Mincho B1',serif; font-size:19px; color:#e0c081;">江</div>
+                <div>
+                  <div style="font-family:'Shippori Mincho B1',serif; font-size:18px; font-weight:700; color:#f6f4ef; line-height:1;">Edo <span style="font-size:13px; color:#9aac9c;">江戸</span></div>
+                  <div style="font-size:11px; color:#9aac9c; margin-top:4px;">Day 1 · Hour 0</div>
+                </div>
+              </div>
+              <div style="display:flex; align-items:center; gap:6px; background:rgba(187,148,87,.16); border-radius:8px; padding:6px 10px;">
+                <span style="font-family:'Shippori Mincho B1',serif; font-size:14px; color:#e0c081;">祭</span>
+                <div><div style="font-size:11px; font-weight:700; color:#f0e6d2; line-height:1;">Festival</div><div style="font-size:10px; color:#e0c081; margin-top:2px;">Prices ↑</div></div>
+              </div>
+            </div>
+            <div style="margin-top:11px; padding-top:11px; border-top:1px solid rgba(246,244,239,.12); display:flex; align-items:center; gap:8px;">
+              <span style="font-size:10px; font-weight:700; letter-spacing:.08em; color:#bb9457;">NEWS</span>
+              <span style="font-size:11px; color:#c8d0c8;">Osaka 大坂 — 嵐 Storm disrupts the docks</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== DARK ===== -->
+    <div style="flex:none; width:402px;">
+      <div style="font-size:13px; font-weight:700; color:#283d3b; margin-bottom:4px;">DARK TILES</div>
+      <div style="font-size:12px; color:#7c8682; margin-bottom:14px;">Unified command-panel top · heavier · gold figures</div>
+      <div data-screen-label="Dark stats" style="width:402px; background:#f6f4ef; border-radius:42px; overflow:hidden; box-shadow:0 12px 40px rgba(40,61,59,.18); border:1px solid #e3ddd2;">
+        <div style="background:#1c2b29; padding:18px 0 0; position:relative;">
+          <div style="text-align:center; padding:0 24px 16px;">
+            <div style="font-family:'Shippori Mincho B1',serif; font-size:27px; font-weight:700; color:#f6f4ef; line-height:1;">鮨商</div>
+            <div style="font-size:10px; font-weight:700; letter-spacing:.4em; color:#bb9457; margin-top:6px;">SUSHI TRADER</div>
+          </div>
+          <svg width="100%" height="20" viewBox="0 0 402 20" preserveAspectRatio="none" style="display:block;">
+            <path d="M0,0 L402,0 L402,20 L368,6 L335,20 L301,6 L268,20 L234,6 L201,20 L167,6 L134,20 L100,6 L67,20 L33,6 L0,20 Z" fill="#1c2b29"/>
+            <path d="M0,0 L402,0 L402,2 L0,2 Z" fill="#9b2226"/>
+          </svg>
+        </div>
+        <div style="padding:18px 16px 22px;">
+          <div style="display:flex; background:#22322f; border:1px solid #2f4744; border-radius:16px; overflow:hidden; margin-bottom:14px;">
+            <div style="flex:1.3; padding:13px 14px;">
+              <div style="font-size:10px; font-weight:700; letter-spacing:.08em; color:#9aac9c;">CASH</div>
+              <div style="display:flex; align-items:baseline; gap:4px; margin-top:3px;"><span style="font-family:'Shippori Mincho B1',serif; font-size:23px; font-weight:700; color:#f6f4ef;">10,000</span><span style="font-size:11px; font-weight:700; color:#e0c081;">mon</span></div>
+            </div>
+            <div style="width:1px; background:rgba(246,244,239,.12); margin:11px 0;"></div>
+            <div style="flex:1; padding:13px 14px;">
+              <div style="font-size:10px; font-weight:700; letter-spacing:.08em; color:#9aac9c;">CARGO</div>
+              <div style="font-family:'Shippori Mincho B1',serif; font-size:23px; font-weight:700; color:#f6f4ef; margin-top:3px;">4<span style="font-size:13px; color:#9aac9c;">/30</span></div>
+            </div>
+            <div style="width:1px; background:rgba(246,244,239,.12); margin:11px 0;"></div>
+            <div style="flex:.85; padding:13px 14px;">
+              <div style="font-size:10px; font-weight:700; letter-spacing:.08em; color:#9aac9c;">SHOPS</div>
+              <div style="font-family:'Shippori Mincho B1',serif; font-size:23px; font-weight:700; color:#f6f4ef; margin-top:3px;">0</div>
+            </div>
+          </div>
+          <div style="background:#22322f; border-radius:16px; padding:14px; position:relative; overflow:hidden;">
+            <div style="position:absolute; left:0; top:0; bottom:0; width:4px; background:#9b2226;"></div>
+            <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+              <div style="display:flex; align-items:center; gap:11px;">
+                <div style="width:38px; height:38px; border-radius:10px; background:rgba(246,244,239,.08); border:1px solid rgba(187,148,87,.30); display:flex; align-items:center; justify-content:center; font-family:'Shippori Mincho B1',serif; font-size:19px; color:#e0c081;">江</div>
+                <div>
+                  <div style="font-family:'Shippori Mincho B1',serif; font-size:18px; font-weight:700; color:#f6f4ef; line-height:1;">Edo <span style="font-size:13px; color:#9aac9c;">江戸</span></div>
+                  <div style="font-size:11px; color:#9aac9c; margin-top:4px;">Day 1 · Hour 0</div>
+                </div>
+              </div>
+              <div style="display:flex; align-items:center; gap:6px; background:rgba(187,148,87,.16); border-radius:8px; padding:6px 10px;">
+                <span style="font-family:'Shippori Mincho B1',serif; font-size:14px; color:#e0c081;">祭</span>
+                <div><div style="font-size:11px; font-weight:700; color:#f0e6d2; line-height:1;">Festival</div><div style="font-size:10px; color:#e0c081; margin-top:2px;">Prices ↑</div></div>
+              </div>
+            </div>
+            <div style="margin-top:11px; padding-top:11px; border-top:1px solid rgba(246,244,239,.12); display:flex; align-items:center; gap:8px;">
+              <span style="font-size:10px; font-weight:700; letter-spacing:.08em; color:#bb9457;">NEWS</span>
+              <span style="font-size:11px; color:#c8d0c8;">Osaka 大坂 — 嵐 Storm disrupts the docks</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+</x-dc>
+</body>
+</html>
