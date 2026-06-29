@@ -263,15 +263,50 @@ export default function SushiTrader() {
 
       if (elapsedHours === 0) return prev;
 
+      const nextTotalHours = prev.totalHours + elapsedHours;
+      const spoilage = {};
+      let totalSpoiled = 0;
+      let lostValue = 0;
+      const newInventory = {};
+
+      Object.entries(prev.inventory).forEach(([sushi, batches]) => {
+        if (isIngredient(sushi)) {
+          newInventory[sushi] = batches;
+          return;
+        }
+
+        newInventory[sushi] = [];
+        let spoiledQty = 0;
+
+        batches.forEach(batch => {
+          const prevState = getSpoilageStateForHours(batch.acquiredAtHour, prev.totalHours);
+          const nextState = getSpoilageStateForHours(batch.acquiredAtHour, nextTotalHours);
+
+          if (prevState !== 'spoiled' && nextState === 'spoiled') {
+            spoiledQty += batch.qty;
+            totalSpoiled += batch.qty;
+            lostValue += batch.qty * (batch.pricePaid || 0);
+          } else {
+            newInventory[sushi].push(batch);
+          }
+        });
+
+        if (spoiledQty > 0) spoilage[sushi] = spoiledQty;
+        if (newInventory[sushi].length === 0) delete newInventory[sushi];
+      });
+
       let newGame = {
         ...prev,
-        totalHours: prev.totalHours + elapsedHours,
-        day: Math.floor((prev.totalHours + elapsedHours) / GAME_HOURS_PER_DAY) + 1,
+        totalHours: nextTotalHours,
+        day: Math.floor(nextTotalHours / GAME_HOURS_PER_DAY) + 1,
         lastActionTime: now,
+        inventory: newInventory,
+        daySpoilageLoss: prev.daySpoilageLoss + lostValue,
       };
 
-      // Age all inventory
-      newGame.inventory = ageInventory(newGame.inventory, elapsedHours);
+      if (totalSpoiled > 0) {
+        newGame.spoilageNotification = { spoilage, totalSpoiled, lostValue };
+      }
 
       // Day rollover
       if (newGame.day > prev.day) {
@@ -386,13 +421,15 @@ export default function SushiTrader() {
     setShowArrival(true);
   };
 
-  const getSpoilageState = (acquiredAtHour) => {
-    const ageHours = game.totalHours - acquiredAtHour;
+  const getSpoilageStateForHours = (acquiredAtHour, totalHours) => {
+    const ageHours = totalHours - acquiredAtHour;
     if (ageHours < SPOILAGE_STATES.fresh.maxHours) return 'fresh';
     if (ageHours < SPOILAGE_STATES.aging.maxHours) return 'aging';
     if (ageHours < SPOILAGE_STATES.urgent.maxHours) return 'urgent';
     return 'spoiled';
   };
+
+  const getSpoilageState = (acquiredAtHour) => getSpoilageStateForHours(acquiredAtHour, game.totalHours);
 
   const getSpoilageMultiplier = (state) => {
     const entry = SPOILAGE_STATES[state];
