@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   StyleSheet,
   Text,
@@ -50,13 +50,13 @@ const getTravelTime = (fromIdx, toIdx) => {
 };
 
 const SUSHI_TYPES = [
-  { name: 'Maguro', kanji: '鮪', en: 'Bluefin Tuna', emoji: '🐟', basePrice: 50, category: 'fish' },
-  { name: 'Sake', kanji: '鮭', en: 'Salmon', emoji: '🐠', basePrice: 30, category: 'fish' },
-  { name: 'Ebi', kanji: '蝦', en: 'Shrimp', emoji: '🦐', basePrice: 20, category: 'fish' },
-  { name: 'Unagi', kanji: '鰻', en: 'Eel', emoji: '🐍', basePrice: 80, category: 'fish' },
-  { name: 'Ikura', kanji: '卵', en: 'Salmon Roe', emoji: '🔴', basePrice: 100, category: 'fish' },
-  { name: 'Tako', kanji: '蛸', en: 'Octopus', emoji: '🐙', basePrice: 40, category: 'fish' },
-  { name: 'Rice', kanji: '米', en: 'Rice', emoji: '🍚', basePrice: 5, category: 'ingredient' },
+  { name: 'Maguro', kanji: '鮪', en: 'Bluefin Tuna', emoji: '🐟', basePrice: 160, category: 'fish' },
+  { name: 'Sake', kanji: '鮭', en: 'Salmon', emoji: '🐠', basePrice: 20, category: 'fish' },
+  { name: 'Ebi', kanji: '蝦', en: 'Shrimp', emoji: '🦐', basePrice: 30, category: 'fish' },
+  { name: 'Unagi', kanji: '鰻', en: 'Eel', emoji: '🐍', basePrice: 95, category: 'fish' },
+  { name: 'Ikura', kanji: '卵', en: 'Salmon Roe', emoji: '🔴', basePrice: 85, category: 'fish' },
+  { name: 'Tako', kanji: '蛸', en: 'Octopus', emoji: '🐙', basePrice: 32, category: 'fish' },
+  { name: 'Rice', kanji: '米', en: 'Rice', emoji: '🍚', basePrice: 6, category: 'ingredient' },
   { name: 'Nori', kanji: '苔', en: 'Seaweed', emoji: '🟢', basePrice: 3, category: 'ingredient' },
 ];
 
@@ -70,6 +70,53 @@ const RESTAURANTS = [
 const REAL_MS_PER_GAME_HOUR = 3600000;
 const GAME_HOURS_PER_DAY = 24;
 const STORAGE_KEY = 'sushitrader:gamestate';
+
+const PRICE_CONFIG = {
+  volatilityBand: 0.20,
+  floorRatio: 0.5,
+  noisePeriodsHours: [41, 17, 7],
+  anchorDriftBand: 0.15,
+  anchorDriftPeriodsDays: [57, 23],
+  timeOfDayAmplitude: 0.12,
+  timeOfDayPeakHour: 18,
+  arrivalDepth: 0.08,
+  arrivalSigmaHours: 2.5,
+};
+
+const ARRIVAL_HOURS = {
+  Maguro: 6, Sake: 6, Ebi: 6, Unagi: 6, Ikura: 6, Tako: 6, Rice: 6, Nori: 6,
+};
+
+const MARKET_PERIODS = [
+  { key: 'dawn',    label: 'Dawn',    startHour: 4,  endHour: 9  },
+  { key: 'midday',  label: 'Midday',  startHour: 9,  endHour: 16 },
+  { key: 'evening', label: 'Evening', startHour: 16, endHour: 20 },
+  { key: 'night',   label: 'Night',   startHour: 20, endHour: 4  },
+];
+
+const REGIONAL_MODIFIERS = {
+  0: { // Edo — capital, huge demand; cheap nori (Asakusa beds)
+    Maguro: 1.25, Sake: 1.10, Ebi: 1.10, Unagi: 0.95, Ikura: 1.10, Tako: 1.10, Rice: 1.05, Nori: 0.80,
+  },
+  1: { // Osaka — merchant hub; signature cheap octopus (Akashi / takoyaki)
+    Maguro: 1.15, Sake: 1.15, Ebi: 1.00, Unagi: 1.05, Ikura: 1.15, Tako: 0.70, Rice: 1.00, Nori: 0.95,
+  },
+  2: { // Kyoto — inland, no coast; sea fish dear, a selling market
+    Maguro: 1.30, Sake: 1.25, Ebi: 1.20, Unagi: 1.10, Ikura: 1.25, Tako: 1.10, Rice: 1.00, Nori: 1.20,
+  },
+  3: { // Hokkaido — cold north; cheap salmon/ikura/shrimp; pricey eel/rice
+    Maguro: 0.75, Sake: 0.60, Ebi: 0.85, Unagi: 1.35, Ikura: 0.60, Tako: 0.95, Rice: 1.20, Nori: 1.00,
+  },
+  4: { // Okinawa — tropical south, remote; northern goods expensive, local warm catch cheap
+    Maguro: 1.20, Sake: 1.40, Ebi: 0.85, Unagi: 1.30, Ikura: 1.40, Tako: 1.00, Rice: 1.25, Nori: 1.05,
+  },
+  5: { // Nagoya — the eel city (Hamana); cheap rice (Nobi plain)
+    Maguro: 1.05, Sake: 1.10, Ebi: 1.00, Unagi: 0.70, Ikura: 1.10, Tako: 1.00, Rice: 0.90, Nori: 0.95,
+  },
+  6: { // Fukuoka — Kyushu fishing port; good fish, cheap nori (Ariake) & eel (Yanagawa)
+    Maguro: 0.95, Sake: 1.20, Ebi: 0.90, Unagi: 0.85, Ikura: 1.20, Tako: 0.90, Rice: 0.95, Nori: 0.80,
+  },
+};
 
 const INITIAL_GAME_STATE = {
   cash: 10000,
@@ -100,14 +147,89 @@ const UPGRADES = [
   { id: 'bag3', name: 'Merchant Cart', kanji: '車', description: '+40 cargo slots', cost: 3000, inventoryBonus: 40 },
 ];
 
-const CITY_EVENTS = [
-  { name: 'Festival', kanji: '祭', emoji: '🎊', priceEffect: 1.5, type: 'positive', description: 'Festival happening!' },
-  { name: 'Good Catch', kanji: '漁', emoji: '🎣', priceEffect: 0.6, type: 'negative', description: 'Abundant supply' },
-  { name: 'Daimyo Visit', kanji: '殿', emoji: '👑', priceEffect: 1.8, type: 'positive', description: 'Nobles visiting' },
-  { name: 'Storm', kanji: '嵐', emoji: '🌪️', priceEffect: 0.5, type: 'negative', description: 'Weather impact' },
-  { name: 'Tsunami Warning', kanji: '波', emoji: '🌊', priceEffect: 0.3, type: 'negative', description: 'Sea warning' },
-  { name: 'Imperial Visit', kanji: '帝', emoji: '⛩️', priceEffect: 2.0, type: 'positive', description: 'Emperor coming!' },
+
+// ── Price Engine (pure, module-level) ──────────────────────────────────────
+
+const hashSeed = (str) => {
+  let h = 2166136261;
+  for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); }
+  return ((h >>> 0) % 100000) / 100000;
+};
+
+const smoothNoise = (seedStr, t, periods) => {
+  let sum = 0, ampTotal = 0;
+  periods.forEach((p, i) => {
+    const amp = 1 / (i + 1);
+    const phase = hashSeed(`${seedStr}:${i}`) * Math.PI * 2;
+    sum += amp * Math.sin((2 * Math.PI * t) / p + phase);
+    ampTotal += amp;
+  });
+  return sum / ampTotal;
+};
+
+const getAnchor = (good, gameDay) => {
+  const start = SUSHI_TYPES.find(s => s.name === good).basePrice;
+  const drift = 1 + PRICE_CONFIG.anchorDriftBand
+              * smoothNoise(`anchor:${good}`, gameDay, PRICE_CONFIG.anchorDriftPeriodsDays);
+  return start * drift;
+};
+
+const getTimeOfDayFactor = (good, localHour) => {
+  const base = 1 + PRICE_CONFIG.timeOfDayAmplitude
+             * Math.cos((2 * Math.PI * (localHour - PRICE_CONFIG.timeOfDayPeakHour)) / 24);
+  const arrival = ARRIVAL_HOURS[good];
+  let diff = Math.abs(localHour - arrival);
+  diff = Math.min(diff, 24 - diff);
+  const dip = -PRICE_CONFIG.arrivalDepth
+            * Math.exp(-(diff * diff) / (2 * PRICE_CONFIG.arrivalSigmaHours ** 2));
+  return base + dip;
+};
+
+const getMarketPeriod = (localHour) => {
+  return MARKET_PERIODS.find(p =>
+    p.startHour < p.endHour
+      ? localHour >= p.startHour && localHour < p.endHour
+      : localHour >= p.startHour || localHour < p.endHour
+  ) || MARKET_PERIODS[1];
+};
+
+const DETERMINISTIC_EVENTS = [
+  { name: 'Good Catch',        kanji: '漁', emoji: '🎣', type: 'negative', description: 'Abundant supply',    categoryEffects: { fish: 0.75, ingredient: 1.0  } },
+  { name: 'Storm',             kanji: '嵐', emoji: '🌪️', type: 'positive', description: 'Boats grounded',    categoryEffects: { fish: 1.40, ingredient: 1.0  } },
+  { name: 'Festival',          kanji: '祭', emoji: '🎊', type: 'positive', description: 'Broad demand spike', categoryEffects: { fish: 1.30, ingredient: 1.15 } },
+  { name: 'Daimyo Visit',      kanji: '殿', emoji: '👑', type: 'positive', description: 'Nobles visiting',    categoryEffects: { fish: 1.35, ingredient: 1.10 } },
+  { name: 'Tsunami Warning',   kanji: '波', emoji: '🌊', type: 'negative', description: 'Sea warning',        categoryEffects: { fish: 1.50, ingredient: 1.05 } },
+  { name: 'Imperial Visit',    kanji: '帝', emoji: '⛩️', type: 'positive', description: 'Emperor coming!',   categoryEffects: { fish: 1.60, ingredient: 1.20 } },
+  { name: 'Quiet Market',      kanji: '静', emoji: '🍵', type: 'neutral',  description: 'Slow trading day',   categoryEffects: { fish: 1.0,  ingredient: 1.0  } },
 ];
+
+const NEUTRAL_EVENT = DETERMINISTIC_EVENTS[DETERMINISTIC_EVENTS.length - 1];
+
+const getCityEvent = (cityIndex, gameDay) => {
+  const seed = hashSeed(`event:${cityIndex}:${gameDay}`);
+  // ~25% chance of a non-neutral event
+  if (seed > 0.25) return NEUTRAL_EVENT;
+  const nonNeutral = DETERMINISTIC_EVENTS.slice(0, -1);
+  const idx = Math.floor(hashSeed(`eventIdx:${cityIndex}:${gameDay}`) * nonNeutral.length);
+  return nonNeutral[idx];
+};
+
+const getPrice = (good, cityIndex, gameHour, localHour) => {
+  const gameDay = Math.floor(gameHour / 24);
+  const anchor = getAnchor(good, gameDay);
+  const regional = REGIONAL_MODIFIERS[cityIndex]?.[good] ?? 1.0;
+  const tod = getTimeOfDayFactor(good, localHour);
+  const event = getCityEvent(cityIndex, gameDay);
+  const category = SUSHI_TYPES.find(s => s.name === good).category;
+  const eventMult = event.categoryEffects?.[category] ?? 1.0;
+  const wobble = 1 + PRICE_CONFIG.volatilityBand
+               * smoothNoise(`px:${good}:${cityIndex}`, gameHour, PRICE_CONFIG.noisePeriodsHours);
+  const raw = anchor * regional * tod * eventMult * wobble;
+  const floor = PRICE_CONFIG.floorRatio * anchor * regional;
+  return Math.max(1, Math.round(Math.max(raw, floor)));
+};
+
+// ──────────────────────────────────────────────────────────────────────────────
 
 const SPOILAGE_STATES = {
   fresh: { maxHours: 24, multiplier: 1.0, color: '#10b981', emoji: '🟢', label: 'Fresh' },
@@ -120,18 +242,40 @@ export default function SushiTrader() {
   const [game, setGame] = useState({ ...INITIAL_GAME_STATE, lastActionTime: Date.now() });
   const [hydrated, setHydrated] = useState(false);
 
-  const [prices, setPrices] = useState({});
-  const [priceHistory, setPriceHistory] = useState(() => {
+  const [devLocalHourOverride, setDevLocalHourOverride] = useState(null);
+
+  const localHour = devLocalHourOverride !== null ? devLocalHourOverride : new Date().getHours();
+
+  const prices = useMemo(() => {
+    const p = {};
+    SUSHI_TYPES.forEach(s => {
+      p[s.name] = getPrice(s.name, game.cityIndex, game.totalHours, localHour);
+    });
+    return p;
+  }, [game.cityIndex, game.totalHours, localHour]);
+
+  const priceHistory = useMemo(() => {
     const h = {};
     SUSHI_TYPES.forEach(s => {
-      h[s.name] = Array.from({ length: 7 }, () =>
-        Math.max(1, s.basePrice + Math.floor(Math.random() * 20) - 8)
-      );
+      const pts = [];
+      for (let offset = 6; offset >= 0; offset--) {
+        const gh = Math.max(0, game.totalHours - offset);
+        pts.push(getPrice(s.name, game.cityIndex, gh, localHour));
+      }
+      h[s.name] = pts;
     });
     return h;
-  });
-  const [cityEvents, setCityEvents] = useState({});
-  const [cityPriceOffsets, setCityPriceOffsets] = useState({});
+  }, [game.cityIndex, game.totalHours, localHour]);
+
+  const cityEvents = useMemo(() => {
+    const ev = {};
+    const gameDay = Math.floor(game.totalHours / 24);
+    CITIES.forEach((_, idx) => {
+      ev[idx] = getCityEvent(idx, gameDay);
+    });
+    return ev;
+  }, [game.totalHours]);
+
   const [newsIndex, setNewsIndex] = useState(0);
   const [showShop, setShowShop] = useState(false);
   const [showMap, setShowMap] = useState(false);
@@ -485,9 +629,6 @@ export default function SushiTrader() {
 
   const resetGame = () => {
     setGame({ ...INITIAL_GAME_STATE, lastActionTime: Date.now() });
-    setPrices({});
-    setCityEvents({});
-    setCityPriceOffsets({});
     setActiveScreen('market');
     setShowTitle(false);
     setToasts([]);
@@ -560,14 +701,6 @@ export default function SushiTrader() {
   };
 
   useEffect(() => {
-    generateCityEvents();
-  }, [game.day]);
-
-  useEffect(() => {
-    generatePrices();
-  }, [game.cityIndex, cityEvents]);
-
-  useEffect(() => {
     const otherCitiesNews = getOtherCitiesNews();
     if (otherCitiesNews.length === 0) return;
 
@@ -578,41 +711,10 @@ export default function SushiTrader() {
     return () => clearInterval(timer);
   }, [cityEvents, game.cityIndex]);
 
-  const generateCityEvents = () => {
-    const events = {};
-    const offsets = {};
-    CITIES.forEach((city, idx) => {
-      if (Math.random() < 0.4) {
-        events[idx] = CITY_EVENTS[Math.floor(Math.random() * CITY_EVENTS.length)];
-      }
-      offsets[idx] = 0.8 + Math.random() * 0.45;
-    });
-    setCityEvents(events);
-    setCityPriceOffsets(offsets);
-    setNewsIndex(0);
-  };
-
-  const generatePrices = () => {
-    const newPrices = {};
-    SUSHI_TYPES.forEach(sushi => {
-      const randomPrice = sushi.basePrice + Math.floor(Math.random() * 30);
-      newPrices[sushi.name] = randomPrice;
-    });
-    setPrices(newPrices);
-    setPriceHistory(prev => {
-      const next = {};
-      SUSHI_TYPES.forEach(sushi => {
-        const hist = prev[sushi.name] || [];
-        next[sushi.name] = [...hist.slice(-6), newPrices[sushi.name]];
-      });
-      return next;
-    });
-  };
-
   const getOtherCitiesNews = () => {
     return CITIES
       .map((city, idx) => ({ city, idx, event: cityEvents[idx] }))
-      .filter(item => item.idx !== game.cityIndex && item.event);
+      .filter(item => item.idx !== game.cityIndex && item.event && item.event.type !== 'neutral');
   };
 
   const getTotalInventory = () => {
@@ -1178,11 +1280,13 @@ export default function SushiTrader() {
     const arrEvent = cityEvents[game.cityIndex];
     const arrHour = game.totalHours % 24;
     const popStr = arrCity.population.toLocaleString();
-    const isPositive = arrEvent && arrEvent.priceEffect > 1;
-    const pctChange = arrEvent
-      ? arrEvent.priceEffect > 1
-        ? `Prices up ${Math.round((arrEvent.priceEffect - 1) * 100)}%`
-        : `Prices down ${Math.round((1 - arrEvent.priceEffect) * 100)}%`
+    const arrEventIsActive = arrEvent && arrEvent.type !== 'neutral';
+    const isPositive = arrEventIsActive && arrEvent.type === 'positive';
+    const fishEffect = arrEvent?.categoryEffects?.fish ?? 1.0;
+    const pctChange = arrEventIsActive
+      ? fishEffect > 1
+        ? `Fish prices up ${Math.round((fishEffect - 1) * 100)}%`
+        : `Fish prices down ${Math.round((1 - fishEffect) * 100)}%`
       : null;
     const tipText = isPositive
       ? 'Sell now — prices are elevated. Don\'t miss the window.'
@@ -1211,7 +1315,7 @@ export default function SushiTrader() {
             <View style={styles.arrivalDivider} />
 
             {/* Event card */}
-            {arrEvent && (
+            {arrEventIsActive && (
               <View style={styles.arrivalCard}>
                 <View style={styles.arrivalCardTop}>
                   <View style={[styles.arrivalBadge, isPositive ? styles.arrivalBadgePos : styles.arrivalBadgeNeg]}>
@@ -1281,7 +1385,7 @@ export default function SushiTrader() {
                 if (idx === game.cityIndex) return null;
                 const baseHours = TRAVEL_DISTANCES[`${game.cityIndex}-${idx}`] || 10;
                 const event = cityEvents[idx];
-                const evPositive = event && event.priceEffect > 1;
+                const evPositive = event && event.type === 'positive';
                 return (
                   <TouchableOpacity
                     key={city.name}
@@ -1301,7 +1405,7 @@ export default function SushiTrader() {
                       </Text>
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7, marginTop: 5 }}>
                         <Text style={styles.portPop}>pop. {(city.population / 1000).toFixed(0)}k</Text>
-                        {event && (
+                        {event && event.type !== 'neutral' && (
                           <View style={[styles.portEventBadge, { backgroundColor: evPositive ? 'rgba(187,148,87,0.14)' : 'rgba(155,34,38,0.10)' }]}>
                             <Text style={[styles.portEventKanji, { color: evPositive ? '#bb9457' : '#9b2226' }]}>{event.kanji}</Text>
                             <Text style={[styles.portEventName, { color: evPositive ? '#bb9457' : '#9b2226' }]}>{event.name}</Text>
@@ -1610,15 +1714,12 @@ export default function SushiTrader() {
     const selSushi = SUSHI_TYPES.find(s => s.name === selectedPriceSushi) || SUSHI_TYPES[0];
     const avgCost = Math.round(getAvgCost(selSushi.name));
 
-    const getCityEstPrice = (cityIdx) => {
-      if (cityIdx === game.cityIndex) return prices[selSushi.name] || selSushi.basePrice;
-      const ev = cityEvents[cityIdx];
-      const offset = cityPriceOffsets[cityIdx] ?? 1.0;
-      return Math.round(selSushi.basePrice * offset * (ev ? ev.priceEffect : 1.0));
-    };
-
     const rankedCities = CITIES
-      .map((city, idx) => ({ city, idx, price: getCityEstPrice(idx), event: cityEvents[idx] }))
+      .map((city, idx) => ({
+        city, idx,
+        price: getPrice(selSushi.name, idx, game.totalHours, localHour),
+        event: cityEvents[idx],
+      }))
       .sort((a, b) => b.price - a.price);
 
     const bestCity = rankedCities.find(r => r.idx !== game.cityIndex);
@@ -1679,7 +1780,8 @@ export default function SushiTrader() {
               const delta = avgCost > 0 ? price - avgCost : null;
               const deltaColor = delta === null ? '#9aa39e' : delta >= 0 ? '#2f7d72' : '#9b2226';
               const travelHrs = isHere ? null : getTravelTime(game.cityIndex, idx);
-              const evPositive = event && event.priceEffect > 1;
+              const evActive = event && event.type !== 'neutral';
+              const evPositive = evActive && event.type === 'positive';
               return (
                 <View key={idx} style={[styles.pbRow, isBest && styles.pbRowBest, isHere && styles.pbRowHere]}>
                   <View style={styles.pbCityBadge}>
@@ -1695,7 +1797,7 @@ export default function SushiTrader() {
                         <View style={styles.pbHereBadge}>
                           <Text style={styles.pbHereBadgeText}>YOU ARE HERE</Text>
                         </View>
-                      ) : event ? (
+                      ) : evActive ? (
                         <Text style={[styles.pbEventTag, { color: evPositive ? '#bb9457' : '#9b2226' }]}>{event.name}</Text>
                       ) : null}
                     </View>
@@ -1843,12 +1945,12 @@ export default function SushiTrader() {
                     <Text style={styles.cityMetaText}>Day {game.day} · Hour {game.totalHours % GAME_HOURS_PER_DAY}</Text>
                   </View>
                 </View>
-                {currentEvent ? (
+                {currentEvent && currentEvent.type !== 'neutral' ? (
                   <View style={styles.cityEventBadge}>
                     <Text style={styles.cityEventKanji}>{currentEvent.kanji}</Text>
                     <View>
                       <Text style={styles.cityEventName}>{currentEvent.name}</Text>
-                      <Text style={styles.cityEventDir}>Prices {currentEvent.priceEffect > 1 ? '↑' : '↓'}</Text>
+                      <Text style={styles.cityEventDir}>Prices {currentEvent.type === 'positive' ? '↑' : '↓'}</Text>
                     </View>
                   </View>
                 ) : null}
@@ -1904,6 +2006,29 @@ export default function SushiTrader() {
                 </TouchableOpacity>
                 <TouchableOpacity style={styles.devToolButton} onPress={inspectGameStateForDev}>
                   <Text style={styles.devToolButtonText}>Inspect</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.devToolButton}
+                  onPress={() => {
+                    Alert.prompt(
+                      'Set local hour',
+                      '0–23 (blank to use real clock)',
+                      (text) => {
+                        if (text === '' || text === null) {
+                          setDevLocalHourOverride(null);
+                        } else {
+                          const h = parseInt(text, 10);
+                          if (!Number.isNaN(h) && h >= 0 && h <= 23) setDevLocalHourOverride(h);
+                        }
+                      },
+                      'plain-text',
+                      devLocalHourOverride !== null ? String(devLocalHourOverride) : ''
+                    );
+                  }}
+                >
+                  <Text style={styles.devToolButtonText}>
+                    {devLocalHourOverride !== null ? `Hour:${devLocalHourOverride}` : 'Set hour'}
+                  </Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={styles.devToolButton} onPress={resetGame}>
                   <Text style={styles.devToolButtonText}>Reset</Text>
