@@ -83,6 +83,15 @@ const PRICE_CONFIG = {
   arrivalSigmaHours: 2.5,
 };
 
+const MARKET_DEPTH = {
+  freeUnits: 5,        // selling up to 5 has NO bulk reduction
+  impactSlope: 0.005,  // reduction added per unit sold beyond freeUnits
+  maxImpact: 0.15,     // never reduce more than 15%
+};
+
+// SEAM: per-good depth override; empty = uniform (uses MARKET_DEPTH defaults).
+const MARKET_DEPTH_BY_GOOD = {};
+
 const ARRIVAL_HOURS = {
   Maguro: 6, Sake: 6, Ebi: 6, Unagi: 6, Ikura: 6, Tako: 6, Rice: 6, Nori: 6,
 };
@@ -227,6 +236,14 @@ const getPrice = (good, cityIndex, gameHour, localHour) => {
   const raw = anchor * regional * tod * eventMult * wobble;
   const floor = PRICE_CONFIG.floorRatio * anchor * regional;
   return Math.max(1, Math.round(Math.max(raw, floor)));
+};
+
+// Q=1 → multiplier 1.0 (no impact); larger Q walks down the demand curve to a floor.
+// Written so buy-side can reuse with inverted sign (1 + impact) if added later.
+const depthMultiplier = (good, qty) => {
+  const cfg = MARKET_DEPTH_BY_GOOD[good] || MARKET_DEPTH;
+  const impact = Math.min(cfg.maxImpact, cfg.impactSlope * Math.max(0, qty - cfg.freeUnits));
+  return 1 - impact;
 };
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -593,11 +610,13 @@ export default function SushiTrader() {
   const getCostBasis = (name) =>
     getBatches(name).reduce((s, b) => s + b.qty * (b.pricePaid || 0), 0);
 
-  const getRealizableValue = (name) =>
-    getBatches(name).reduce((s, b) => {
-      const mult = getSpoilageMultiplier(getSpoilageState(b.acquiredAtHour));
+  const getRealizableValue = (name) => {
+    const ingredient = isIngredient(name);
+    return getBatches(name).reduce((s, b) => {
+      const mult = ingredient ? 1.0 : getSpoilageMultiplier(getSpoilageState(b.acquiredAtHour));
       return s + b.qty * Math.floor((prices[name] || 0) * mult);
     }, 0);
+  };
 
   const getUnrealizedPL = (name) => getRealizableValue(name) - getCostBasis(name);
 
@@ -800,6 +819,7 @@ export default function SushiTrader() {
       let costOfSold = 0;
 
       const ingredient = isIngredient(sushiName);
+      const depthMult = depthMultiplier(sushiName, qty);
       for (let i = 0; i < itemBatches.length && remaining > 0; i++) {
         const batch = itemBatches[i];
         const state = getSpoilageState(batch.acquiredAtHour);
@@ -808,7 +828,7 @@ export default function SushiTrader() {
         if (multiplier === 0) continue;
 
         const sellQty = Math.min(remaining, batch.qty);
-        const pricePerUnit = Math.floor(prices[sushiName] * multiplier);
+        const pricePerUnit = Math.max(1, Math.floor(prices[sushiName] * multiplier * depthMult));
         earned += sellQty * pricePerUnit;
         costOfSold += sellQty * (batch.pricePaid || 0);
 
@@ -925,6 +945,7 @@ export default function SushiTrader() {
   const computeTravelSpoilage = (travelHours) => {
     const warnings = [];
     SUSHI_TYPES.forEach(sushi => {
+      if (isIngredient(sushi.name)) return;
       const batches = getBatches(sushi.name);
       if (batches.length === 0) return;
       let willSpoil = 0, turnsUrgent = 0, turnsAging = 0;
@@ -964,16 +985,18 @@ export default function SushiTrader() {
   const computeSellPreview = (sushiName, qty) => {
     const batches = [...(game.inventory[sushiName] || [])]
       .sort((a, b) => a.acquiredAtHour - b.acquiredAtHour);
+    const ingredient = isIngredient(sushiName);
+    const depthMult = depthMultiplier(sushiName, qty);
     let remaining = qty;
     const rows = [];
     batches.forEach(batch => {
       if (remaining <= 0) return;
-      const state = getSpoilageState(batch.acquiredAtHour);
-      const mult = getSpoilageMultiplier(state);
+      const state = ingredient ? 'fresh' : getSpoilageState(batch.acquiredAtHour);
+      const mult = ingredient ? 1.0 : getSpoilageMultiplier(state);
       if (mult === 0) return;
       const sellQty = Math.min(remaining, batch.qty);
-      const effectivePrice = Math.floor((prices[sushiName] || 0) * mult);
-      rows.push({ qty: sellQty, state, mult, effectivePrice, subtotal: sellQty * effectivePrice });
+      const effectivePrice = Math.max(1, Math.floor((prices[sushiName] || 0) * mult * depthMult));
+      rows.push({ qty: sellQty, state, mult, depthMult, effectivePrice, subtotal: sellQty * effectivePrice });
       remaining -= sellQty;
     });
     return rows;
@@ -1101,16 +1124,16 @@ export default function SushiTrader() {
           </View>
         </View>
         <View style={styles.ingredientActions}>
-          <TouchableOpacity onPress={() => buy(sushi.name, 1)}>
+          <TouchableOpacity onPress={() => openBuySheet(sushi, 1)}>
             <Text style={styles.ingredientBuy}>Buy 1</Text>
           </TouchableOpacity>
-          <TouchableOpacity onPress={() => buy(sushi.name, 10)}>
+          <TouchableOpacity onPress={() => openBuySheet(sushi, 10)}>
             <Text style={styles.ingredientBuy}>Buy 10</Text>
           </TouchableOpacity>
-          <TouchableOpacity onPress={() => sell(sushi.name, 1)} disabled={totalQty === 0}>
+          <TouchableOpacity onPress={() => openSellSheet(sushi, 1)} disabled={totalQty === 0}>
             <Text style={[styles.ingredientSell, totalQty === 0 && styles.ingredientSellFaded]}>Sell 1</Text>
           </TouchableOpacity>
-          <TouchableOpacity onPress={() => sell(sushi.name, totalQty)} disabled={totalQty === 0}>
+          <TouchableOpacity onPress={() => openSellSheet(sushi, totalQty)} disabled={totalQty === 0}>
             <Text style={[styles.ingredientSellAll, totalQty === 0 && styles.ingredientSellFaded]}>Sell all</Text>
           </TouchableOpacity>
         </View>
@@ -1619,7 +1642,8 @@ export default function SushiTrader() {
                 const pl = getUnrealizedPL(sushi.name);
                 const plColor = pl >= 0 ? '#2f7d72' : '#9b2226';
                 const plSign = pl >= 0 ? '+' : '';
-                const hasSpoiled = batches.some(b => getSpoilageState(b.acquiredAtHour) === 'spoiled');
+                const ingredientGood = isIngredient(sushi.name);
+                const hasSpoiled = !ingredientGood && batches.some(b => getSpoilageState(b.acquiredAtHour) === 'spoiled');
 
                 return (
                   <View key={sushi.name} style={styles.holdCard}>
@@ -1650,12 +1674,13 @@ export default function SushiTrader() {
                     {/* Batch chips */}
                     <View style={styles.holdChips}>
                       {batches.map((batch, i) => {
-                        const state = getSpoilageState(batch.acquiredAtHour);
-                        const hoursLeft = getHoursRemaining(batch.acquiredAtHour);
+                        const state = ingredientGood ? 'fresh' : getSpoilageState(batch.acquiredAtHour);
                         const ink = stateColor(state);
                         const bg = stateBg(state);
                         const bd = stateBd(state);
-                        const leftText = state === 'spoiled' ? 'spoiled' : `${hoursLeft}h left`;
+                        const leftText = ingredientGood
+                          ? 'no spoilage'
+                          : state === 'spoiled' ? 'spoiled' : `${getHoursRemaining(batch.acquiredAtHour)}h left`;
                         return (
                           <View key={i} style={[styles.holdChip, { backgroundColor: bg, borderColor: bd }]}>
                             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
@@ -2451,6 +2476,9 @@ export default function SushiTrader() {
           const totalProceeds = preview.reduce((s, r) => s + r.subtotal, 0);
           const cargoAfter = inventoryCount - cappedQty;
           const canSell = cappedQty > 0 && preview.length > 0;
+          const dm = depthMultiplier(sushi.name, cappedQty);
+          const depthPct = Math.round((1 - dm) * 100);
+          const adjPrice = Math.round(price * dm);
 
           const stateColor = (s) => {
             if (s === 'fresh') return '#2f7d72';
@@ -2500,6 +2528,12 @@ export default function SushiTrader() {
                       <Text style={styles.bsStepPlusText}>+</Text>
                     </TouchableOpacity>
                   </View>
+
+                  {depthPct > 0 && (
+                    <Text style={styles.ssDepthNote}>
+                      Bulk sale · avg {adjPrice} mon/unit (−{depthPct}%)
+                    </Text>
+                  )}
 
                   {/* Batch breakdown */}
                   <View style={{ flexDirection: 'row', alignItems: 'stretch', marginBottom: 14 }}>
@@ -5328,6 +5362,12 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '700',
     color: '#9aa39e',
+  },
+  ssDepthNote: {
+    fontSize: 11.5,
+    color: '#bb9457',
+    textAlign: 'center',
+    marginBottom: 10,
   },
   ssSummaryRow: {
     flexDirection: 'row',
